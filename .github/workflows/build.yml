@@ -19,11 +19,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Gradle 8.5
+      - name: Install Gradle 7.4.2
         run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
-          unzip -q gradle-8.5-bin.zip
-          echo "$PWD/gradle-8.5/bin" >> $GITHUB_PATH
+          wget -q https://services.gradle.org/distributions/gradle-7.4.2-bin.zip
+          unzip -q gradle-7.4.2-bin.zip
+          echo "$PWD/gradle-7.4.2/bin" >> $GITHUB_PATH
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -32,7 +32,7 @@ jobs:
         run: |
           npm install -g cordova@12.0.0
           cd AppNfc
-          cordova platform add android@11.0.0
+          cordova platform add android@12.0.0
           cordova plugin add phonegap-nfc
           cordova build android --debug
 
