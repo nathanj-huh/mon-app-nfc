@@ -19,15 +19,32 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.5'
+          cache-disabled: true
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Install Cordova & Build APK
-        env:
-          CORDOVA_ANDROID_GRADLE_DISTRIBUTION_URL: "https://services.gradle.org/distributions/gradle-8.5-bin.zip"
         run: |
           npm install -g cordova@12.0.0
           cd AppNfc
           cordova platform add android@11.0.0
           cordova plugin add phonegap-nfc
+          
+          # On génère le wrapper Gradle 8.5 pour empêcher Cordova d'utiliser Gradle 9
+          cd platforms/android
+          gradle wrapper --gradle-version 8.5
+          
+          # On revient à la racine du projet Cordova pour compiler
+          cd ../..
           cordova build android --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: AppNfc/platforms/android/app/build/outputs/apk/debug/app-debug.apk
