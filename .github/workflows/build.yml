@@ -28,13 +28,13 @@ jobs:
           cd AppNfc
           cordova platform add android@13.0.0
           
-          # On retire le vieux plugin qui fait planter la compilation
+          # Nettoyage de l'ancien plugin NFC obsolète
           cordova plugin remove phonegap-nfc --force || true
           
-          # On installe la version moderne compatible Android 13+
+          # Installation du plugin NFC moderne et compatible
           cordova plugin add cordova-plugin-nfc
 
-          # Configuration de compatibilité
+          # Configuration requise pour Android 13 + Java 17
           mkdir -p platforms/android
           echo "org.gradle.java.home=$JAVA_HOME" >> platforms/android/gradle.properties
           echo "org.gradle.jvmargs=-Xmx4096m -XX:+UseParallelGC" >> platforms/android/gradle.properties
