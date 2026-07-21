@@ -27,9 +27,14 @@ jobs:
           npm install -g cordova@12.0.0
           cd AppNfc
           cordova platform add android@13.0.0
-          cordova plugin add phonegap-nfc
+          
+          # On retire le vieux plugin qui fait planter la compilation
+          cordova plugin remove phonegap-nfc --force || true
+          
+          # On installe la version moderne compatible Android 13+
+          cordova plugin add cordova-plugin-nfc
 
-          # Configuration AndroidX et JVM préconisée par Copilot
+          # Configuration de compatibilité
           mkdir -p platforms/android
           echo "org.gradle.java.home=$JAVA_HOME" >> platforms/android/gradle.properties
           echo "org.gradle.jvmargs=-Xmx4096m -XX:+UseParallelGC" >> platforms/android/gradle.properties
