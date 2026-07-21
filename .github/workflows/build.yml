@@ -34,6 +34,12 @@ jobs:
           cd AppNfc
           cordova platform add android@12.0.0
           cordova plugin add phonegap-nfc
+
+          # Set Gradle wrapper to use compatible version
+          mkdir -p platforms/android
+          echo "org.gradle.java.home=$JAVA_HOME" >> platforms/android/gradle.properties
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:+UseParallelGC" >> platforms/android/gradle.properties
+
           cordova build android --debug
 
       - name: Upload APK
