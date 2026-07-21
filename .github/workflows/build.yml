@@ -51,6 +51,8 @@ jobs:
           # Nettoyage et préparation avec les nouvelles permissions du config.xml
           cordova platform remove android --nosave || true
           cordova platform add android@10.1.2
+          - name: Debug AndroidManifest
+        run: cat AppNfc/platforms/android/app/src/main/AndroidManifest.xml
           cordova plugin add phonegap-nfc
 
           cordova build android --debug
