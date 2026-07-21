@@ -1,0 +1,1824 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Budget - Suivi Financier</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Variables de thème CSS dynamiques -->
+  <style id="theme-style">
+    :root {
+      --brand-50: #ecfdf5;
+      --brand-100: #d1fae5;
+      --brand-500: #10b981;
+      --brand-600: #059669;
+      --brand-700: #047857;
+    }
+  </style>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: 'var(--brand-50)',
+              100: 'var(--brand-100)',
+              500: 'var(--brand-500)',
+              600: 'var(--brand-600)',
+              700: 'var(--brand-700)',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Masquer la scrollbar pour une expérience plus proche d'une app native */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    /* Style pour l'effet de flou */
+    .backdrop-blur-md {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 h-full flex flex-col font-sans overflow-hidden select-none transition-colors duration-300">
+
+  <!-- ZONE DE NOTIFICATION PERSONNALISÉE -->
+  <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-4 py-3 rounded-xl shadow-lg flex items-center space-x-2 transition-all duration-300 opacity-0 pointer-events-none scale-90">
+    <span id="toast-message" class="text-sm font-medium">Notification</span>
+  </div>
+
+  <!-- FENÊTRE DE CONFIRMATION PERSONNALISÉE (Remplace alert/confirm) -->
+  <div id="confirm-modal" class="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4 hidden backdrop-blur-md">
+    <div class="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-sm p-6 space-y-4 text-center border border-transparent dark:border-gray-700">
+      <div class="w-12 h-12 bg-rose-50 dark:bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center mx-auto">
+        <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+      </div>
+      <h3 id="confirm-title" class="font-extrabold text-lg text-gray-800 dark:text-white">Confirmation</h3>
+      <p id="confirm-text" class="text-xs text-gray-500 dark:text-gray-400 px-2 leading-relaxed"></p>
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <button id="confirm-cancel-btn" onclick="closeConfirmModal()" class="py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-bold transition-all">Annuler</button>
+        <button id="confirm-yes-btn" class="py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-all">Confirmer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MENU LATÉRAL (BARRE LATÉRALE GAUCHE) -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-40 hidden transition-opacity duration-300"></div>
+  <aside id="sidebar" class="fixed top-0 left-0 bottom-0 w-80 bg-white dark:bg-gray-800 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out shadow-2xl flex flex-col border-r border-transparent dark:border-gray-700">
+    <!-- Header Sidebar -->
+    <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 bg-brand-100 dark:bg-brand-500/20 text-brand-600 dark:text-brand-500 rounded-xl flex items-center justify-center">
+          <i data-lucide="wallet" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h2 class="font-bold text-lg text-gray-800 dark:text-white">Mon Budget</h2>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Version Standard 1.4</p>
+        </div>
+      </div>
+      <button onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+    <!-- Liens Sidebar -->
+    <nav class="flex-1 p-4 space-y-1">
+      <a href="#" onclick="switchTab('home'); toggleSidebar()" class="flex items-center space-x-3 px-4 py-3 rounded-xl text-brand-600 dark:text-brand-500 bg-brand-50 dark:bg-brand-500/10 font-medium">
+        <i data-lucide="home" class="w-5 h-5"></i>
+        <span>Vue d'ensemble</span>
+      </a>
+      <a href="#" onclick="switchTab('categories'); toggleSidebar()" class="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium">
+        <i data-lucide="grid" class="w-5 h-5"></i>
+        <span>Mes Catégories</span>
+      </a>
+      <a href="#" onclick="switchTab('report'); toggleSidebar()" class="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium">
+        <i data-lucide="pie-chart" class="w-5 h-5"></i>
+        <span>Rapport Mensuel</span>
+      </a>
+      <a href="#" onclick="switchTab('settings'); toggleSidebar()" class="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium">
+        <i data-lucide="settings" class="w-5 h-5"></i>
+        <span>Paramètres</span>
+      </a>
+    </nav>
+    <!-- Footer Sidebar -->
+    <div class="p-4 border-t border-gray-100 dark:border-gray-700">
+      <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl flex items-center space-x-3">
+        <div class="w-10 h-10 bg-brand-500 rounded-full flex items-center justify-center text-white font-bold">
+          U
+        </div>
+        <div>
+          <p class="font-semibold text-sm text-gray-800 dark:text-white">Utilisateur Standard</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Compte Enfant/Ado</p>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- HEADER PRINCIPAL -->
+  <header class="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 px-4 py-3 flex items-center justify-between sticky top-0 z-30 shrink-0 transition-colors">
+    <!-- Menu Hamburger & Bulle de Compte -->
+    <div class="flex items-center space-x-3">
+      <!-- Menu Hamburger -->
+      <button onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 transition-colors" aria-label="Menu latéral">
+        <i data-lucide="menu" class="w-6 h-6"></i>
+      </button>
+
+      <!-- Bulle Allongée de Compte -->
+      <div class="relative">
+        <button onclick="toggleAccountDropdown()" class="flex items-center space-x-2 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200/60 dark:border-gray-600 rounded-full pl-1.5 pr-3 py-1 transition-all">
+          <div id="current-account-avatar" class="w-7 h-7 rounded-full bg-brand-500 text-white font-bold text-xs flex items-center justify-center">
+            -
+          </div>
+          <div class="text-left leading-tight">
+            <p id="current-account-name" class="text-xs font-semibold text-gray-800 dark:text-white truncate max-w-[90px]">Aucun compte</p>
+            <p id="current-account-card" class="text-[10px] text-gray-500 dark:text-gray-400 font-mono">----</p>
+          </div>
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-400"></i>
+        </button>
+
+        <!-- Menu déroulant des comptes -->
+        <div id="account-dropdown" class="absolute left-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl py-2 hidden z-50">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-4 pt-1 pb-2">Changer de compte</p>
+          <div id="accounts-list" class="space-y-0.5 max-h-72 overflow-y-auto no-scrollbar">
+            <!-- Rempli dynamiquement -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Titre / Marque de l'App (Masqué sur tout petit écran) -->
+    <div class="hidden sm:block">
+      <h1 class="text-base font-bold text-gray-800 dark:text-white flex items-center space-x-1.5">
+        <span class="text-brand-500">●</span>
+        <span>SmartBudget</span>
+      </h1>
+    </div>
+
+    <!-- Icône NFC (Paiement) -->
+    <div>
+      <button onclick="openNfcModal()" class="p-2 hover:bg-brand-50 dark:hover:bg-gray-700 text-brand-600 dark:text-brand-400 rounded-full transition-all relative" title="Payer par NFC">
+        <i data-lucide="credit-card" class="w-6 h-6"></i>
+        <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-brand-500 rounded-full animate-ping"></span>
+        <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-brand-500 rounded-full"></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTENU PRINCIPAL (DÉFILANT) -->
+  <main class="flex-1 overflow-y-auto no-scrollbar pb-28 pt-2">
+    
+    <!-- ONGLET : ACCUEIL -->
+    <section id="tab-home" class="p-4 space-y-6">
+      <!-- Solde Restant -->
+      <div class="bg-gradient-to-br from-brand-500 to-brand-600 rounded-3xl p-6 text-white shadow-xl shadow-brand-500/20 dark:shadow-none relative overflow-hidden">
+        <!-- Fond décoratif -->
+        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+        <p class="text-xs text-white/80 font-medium tracking-wider uppercase">Solde actuel disponible</p>
+        <h2 id="home-balance" class="text-4xl font-extrabold mt-1 tracking-tight">0,00 €</h2>
+        
+        <!-- Sous-indicateurs Recettes / Dépenses -->
+        <div class="grid grid-cols-2 gap-4 mt-6 pt-5 border-t border-white/20">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-brand-50">
+              <i data-lucide="trending-up" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <p class="text-[10px] text-white/70 uppercase">Reçu ce mois</p>
+              <p id="home-total-income" class="text-sm font-bold">+0,00 €</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-brand-50">
+              <i data-lucide="trending-down" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <p class="text-[10px] text-white/70 uppercase">Dépensé ce mois</p>
+              <p id="home-total-expenses" class="text-sm font-bold">-0,00 €</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Graphique de synthèse -->
+      <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm transition-colors">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-gray-800 dark:text-white text-sm">Vue d'ensemble des flux</h3>
+          <span class="text-[11px] bg-brand-50 dark:bg-brand-500/20 text-brand-700 dark:text-brand-300 font-semibold px-2 py-1 rounded-full">Mensuel</span>
+        </div>
+        <div class="h-44 relative">
+          <canvas id="homeChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Liste des transactions récentes -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-gray-800 dark:text-white text-sm">Transactions récentes</h3>
+          <button onclick="switchTab('report')" class="text-xs text-brand-600 dark:text-brand-400 font-semibold hover:underline">Tout voir</button>
+        </div>
+        
+        <div id="recent-transactions-list" class="space-y-2">
+          <!-- Rempli dynamiquement -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ONGLET : CATÉGORIES -->
+    <section id="tab-categories" class="p-4 space-y-6 hidden">
+      <!-- Sélecteur interne Dépenses / Recettes -->
+      <div class="bg-gray-100 dark:bg-gray-800 p-1 rounded-xl flex transition-colors">
+        <button id="cat-tab-expense" onclick="toggleCategoryTypeTab('expense')" class="flex-1 py-2 text-xs font-bold rounded-lg text-center transition-all bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-sm">
+          Dépenses
+        </button>
+        <button id="cat-tab-income" onclick="toggleCategoryTypeTab('income')" class="flex-1 py-2 text-xs font-semibold rounded-lg text-center transition-all text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
+          Recettes
+        </button>
+      </div>
+
+      <!-- Liste des catégories existantes -->
+      <div class="space-y-3">
+        <h3 class="font-bold text-gray-800 dark:text-white text-sm">Catégories existantes</h3>
+        <div id="categories-grid" class="grid grid-cols-2 gap-3">
+          <!-- Rempli dynamiquement -->
+        </div>
+      </div>
+
+      <!-- Formulaire de création de catégorie -->
+      <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-5 shadow-sm space-y-4 transition-colors">
+        <h3 class="font-bold text-gray-800 dark:text-white text-sm flex items-center space-x-1.5">
+          <span class="w-2.5 h-2.5 bg-brand-500 rounded-full"></span>
+          <span>Créer une nouvelle catégorie</span>
+        </h3>
+        
+        <!-- Nom -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Nom de la catégorie</label>
+          <input type="text" id="new-cat-name" placeholder="Ex. Supermarché, Cinéma..." class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-colors">
+        </div>
+
+        <!-- Palette de couleurs -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">Couleur de fond</label>
+          <div class="flex flex-wrap gap-2" id="color-palette-container">
+            <!-- Rempli en JS -->
+          </div>
+        </div>
+
+        <!-- Palette d'icônes -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">Icône de catégorie</label>
+          <div class="grid grid-cols-6 gap-2" id="icon-palette-container">
+            <!-- Rempli en JS -->
+          </div>
+        </div>
+
+        <button onclick="saveNewCategory()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center space-x-1.5">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span>Ajouter la catégorie</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ONGLET : RAPPORT -->
+    <section id="tab-report" class="p-4 space-y-6 hidden">
+      <!-- Sélecteur de période -->
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-gray-800 dark:text-white text-sm">Analyse budgétaire</h3>
+        <div class="bg-gray-100 dark:bg-gray-800 p-0.5 rounded-lg flex transition-colors">
+          <button id="period-weekly" onclick="changeReportPeriod('week')" class="px-3 py-1 text-[11px] font-semibold rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all">Semaine</button>
+          <button id="period-monthly" onclick="changeReportPeriod('month')" class="px-3 py-1 text-[11px] font-bold rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-sm transition-all">Mois</button>
+        </div>
+      </div>
+
+      <!-- Statistiques clés de la période -->
+      <div class="grid grid-cols-3 gap-2.5">
+        <div class="bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/20 p-3 rounded-2xl text-center">
+          <p class="text-[9px] font-bold text-brand-700 dark:text-brand-400 uppercase tracking-wider">Total Reçu</p>
+          <p id="report-stat-income" class="text-xs font-bold text-brand-600 dark:text-brand-500 mt-1">+0,00 €</p>
+        </div>
+        <div class="bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 p-3 rounded-2xl text-center">
+          <p class="text-[9px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">Total Dépensé</p>
+          <p id="report-stat-expenses" class="text-xs font-bold text-rose-600 dark:text-rose-500 mt-1">-0,00 €</p>
+        </div>
+        <div class="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 p-3 rounded-2xl text-center">
+          <p class="text-[9px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Économie</p>
+          <p id="report-stat-net" class="text-xs font-bold text-indigo-600 dark:text-indigo-500 mt-1">0,00 €</p>
+        </div>
+      </div>
+
+      <!-- Graphique Circulaire détaillé -->
+      <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center transition-colors">
+        <h4 class="font-bold text-gray-800 dark:text-white text-xs w-full text-left mb-2">Répartition des dépenses</h4>
+        <div class="w-full max-w-[200px] h-[200px] relative">
+          <canvas id="reportDoughnutChart"></canvas>
+        </div>
+        <div id="report-no-data-warning" class="hidden text-xs text-gray-400 dark:text-gray-500 mt-4 text-center">
+          Aucune dépense enregistrée sur cette période pour générer le diagramme.
+        </div>
+      </div>
+
+      <!-- Rapport détaillé par catégories -->
+      <div class="space-y-3">
+        <h4 class="font-bold text-gray-800 dark:text-white text-xs">Détails par catégorie</h4>
+        <div id="report-category-breakdown" class="space-y-2">
+          <!-- Rempli dynamiquement -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ONGLET : PARAMÈTRES -->
+    <section id="tab-settings" class="p-4 space-y-6 hidden">
+      <!-- Nouvelle Section : Gérer mes comptes -->
+      <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-4 shadow-sm space-y-4 transition-colors">
+        <h3 class="font-bold text-gray-800 dark:text-white text-sm flex items-center justify-between">
+          <span>Gérer mes comptes</span>
+          <button onclick="openAccountModal()" class="text-xs text-brand-600 dark:text-brand-400 flex items-center space-x-1">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>Nouveau</span>
+          </button>
+        </h3>
+        
+        <div id="settings-accounts-list" class="space-y-2.5">
+          <!-- Rempli en JS -->
+        </div>
+      </div>
+
+      <!-- Section Devises et Thème -->
+      <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-4 shadow-sm space-y-4 transition-colors">
+        <h3 class="font-bold text-gray-800 dark:text-white text-sm">Général & Apparence</h3>
+        
+        <!-- Couleur de l'application -->
+        <div class="flex items-center justify-between py-1">
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 flex items-center justify-center">
+              <i data-lucide="palette" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-800 dark:text-white">Couleur du Thème</p>
+              <p class="text-[10px] text-gray-400">Changer la couleur principale</p>
+            </div>
+          </div>
+          <select id="setting-theme-color" onchange="updateAppColor()" class="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs px-2.5 py-1.5 font-semibold text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+            <option value="emerald">Vert Émeraude</option>
+            <option value="blue">Bleu Océan</option>
+            <option value="purple">Violet Royal</option>
+            <option value="rose">Rose Corail</option>
+          </select>
+        </div>
+
+        <hr class="border-gray-100 dark:border-gray-700">
+
+        <!-- Mode Sombre/Clair -->
+        <div class="flex items-center justify-between py-1">
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 flex items-center justify-center">
+              <i data-lucide="moon" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-800 dark:text-white">Mode Sombre</p>
+              <p class="text-[10px] text-gray-400">Activer le thème nuit</p>
+            </div>
+          </div>
+          <button id="dark-mode-btn" onclick="toggleDarkMode()" class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-200 transition-all">
+            Activer
+          </button>
+        </div>
+
+        <hr class="border-gray-100 dark:border-gray-700">
+
+        <!-- Devise -->
+        <div class="flex items-center justify-between py-1">
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 flex items-center justify-center">
+              <i data-lucide="coins" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-800 dark:text-white">Devise Principale</p>
+              <p class="text-[10px] text-gray-400">Symbole de devise affiché</p>
+            </div>
+          </div>
+          <select id="setting-currency" onchange="updateCurrency()" class="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs px-2.5 py-1.5 font-semibold text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+            <option value="EUR">Euro (€)</option>
+            <option value="USD">Dollar ($)</option>
+            <option value="CHF">Franc Suisse (CHF)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Section Actions et Simulation -->
+      <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-4 shadow-sm space-y-4 transition-colors">
+        <h3 class="font-bold text-gray-800 dark:text-white text-sm">Outils & Simulation</h3>
+        
+        <!-- Injecter de fausses données -->
+        <div class="flex items-center justify-between py-1">
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-brand-50 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 flex items-center justify-center">
+              <i data-lucide="database" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-800 dark:text-white">Données de test</p>
+              <p class="text-[10px] text-gray-400">Remplir l'application d'exemples</p>
+            </div>
+          </div>
+          <button onclick="injectDemoData()" class="px-3 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-xs font-bold transition-all">
+            Générer
+          </button>
+        </div>
+
+        <hr class="border-gray-100 dark:border-gray-700">
+
+        <!-- Réinitialiser -->
+        <div class="flex items-center justify-between py-1">
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-800 dark:text-white">Réinitialiser l'application</p>
+              <p class="text-[10px] text-gray-400">Vider le stockage local</p>
+            </div>
+          </div>
+          <button onclick="resetApp()" class="px-3 py-1.5 bg-rose-100 dark:bg-rose-900/50 hover:bg-rose-200 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-400 rounded-lg text-xs font-bold transition-all">
+            Effacer tout
+          </button>
+        </div>
+      </div>
+
+      <!-- À propos -->
+      <div class="text-center text-[11px] text-gray-400 space-y-1 pb-4">
+        <p>SmartBudget • Conçu de manière sécurisée pour les adolescents</p>
+        <p>Pas de vraies transactions bancaires — Outil de simulation sain</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- BOUTON D'ACTION FLOTTANT (FAB) FIXÉ (NE CACHE PLUS LA BARRE DE NAV) -->
+  <button onclick="openTransactionModal()" class="fixed bottom-20 right-5 z-40 w-14 h-14 bg-brand-500 hover:bg-brand-600 text-white rounded-full shadow-lg shadow-brand-500/30 flex items-center justify-center transition-all hover:scale-105 active:scale-95 border-4 border-white dark:border-gray-800" title="Ajouter une transaction">
+    <i data-lucide="plus" class="w-6 h-6"></i>
+  </button>
+
+  <!-- BARRE D'ONGLETS INFÉRIEURE -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 px-4 py-2 flex items-center justify-between z-30 shrink-0 transition-colors">
+    <div class="flex items-center justify-around w-full max-w-md mx-auto">
+      <!-- Onglet Accueil -->
+      <button onclick="switchTab('home')" id="nav-home" class="flex flex-col items-center space-y-1 py-1 px-3 text-brand-600 dark:text-brand-400 transition-all">
+        <i data-lucide="home" class="w-5 h-5"></i>
+        <span class="text-[9px] font-bold">Accueil</span>
+      </button>
+
+      <!-- Onglet Catégories -->
+      <button onclick="switchTab('categories')" id="nav-categories" class="flex flex-col items-center space-y-1 py-1 px-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all">
+        <i data-lucide="grid" class="w-5 h-5"></i>
+        <span class="text-[9px] font-semibold">Catégories</span>
+      </button>
+
+      <!-- Onglet Rapport -->
+      <button onclick="switchTab('report')" id="nav-report" class="flex flex-col items-center space-y-1 py-1 px-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all">
+        <i data-lucide="pie-chart" class="w-5 h-5"></i>
+        <span class="text-[9px] font-semibold">Rapport</span>
+      </button>
+
+      <!-- Onglet Paramètres -->
+      <button onclick="switchTab('settings')" id="nav-settings" class="flex flex-col items-center space-y-1 py-1 px-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all">
+        <i data-lucide="settings" class="w-5 h-5"></i>
+        <span class="text-[9px] font-semibold">Paramètres</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- TUTORIEL DE BIENVENUE ET PREMIER COMPTE (ONBOARDING) -->
+  <div id="onboarding-overlay" class="fixed inset-0 bg-gray-900/80 dark:bg-gray-950/95 z-[70] flex items-center justify-center p-4 backdrop-blur-md transition-opacity duration-300 hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-6 flex flex-col justify-between transition-all">
+      
+      <!-- ÉTAPE 1 : Bienvenue -->
+      <div id="onboarding-step-1" class="space-y-4 text-center">
+        <div class="w-16 h-16 bg-brand-100 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 rounded-2xl flex items-center justify-center mx-auto">
+          <i data-lucide="sparkles" class="w-8 h-8"></i>
+        </div>
+        <h3 class="font-extrabold text-2xl text-gray-800 dark:text-white">Bienvenue sur SmartBudget !</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-300 px-2">
+          L'outil idéal et ludique pour apprendre à gérer ton argent de poche, tes économies ou tes projets sans aucune prise de tête.
+        </p>
+        <button onclick="onboardingNext(2)" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-brand-500/20">
+          Super, c'est parti !
+        </button>
+      </div>
+
+      <!-- ÉTAPE 2 : Découverte -->
+      <div id="onboarding-step-2" class="space-y-5 hidden">
+        <h4 class="font-extrabold text-xl text-gray-800 dark:text-white text-center">Comment ça marche ?</h4>
+        
+        <div class="space-y-4">
+          <div class="flex items-start space-x-3">
+            <div class="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-500 rounded-xl mt-0.5">
+              <i data-lucide="home" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <p class="text-xs font-bold text-gray-800 dark:text-white">Onglet Accueil</p>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400">Pour garder un œil sur ton solde et l'historique récent.</p>
+            </div>
+          </div>
+
+          <div class="flex items-start space-x-3">
+            <div class="p-2 bg-purple-50 dark:bg-purple-500/10 text-purple-500 rounded-xl mt-0.5">
+              <i data-lucide="grid" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <p class="text-xs font-bold text-gray-800 dark:text-white">Création libre</p>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400">Personnalise tes catégories avec tes propres couleurs et icônes.</p>
+            </div>
+          </div>
+
+          <div class="flex items-start space-x-3">
+            <div class="p-2 bg-brand-50 dark:bg-brand-500/10 text-brand-500 rounded-xl mt-0.5">
+              <i data-lucide="plus" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <p class="text-xs font-bold text-gray-800 dark:text-white">Bouton Flottant (+)</p>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400">Ajoute manuellement une dépense ou une recette en 2 secondes.</p>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="onboardingNext(3)" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3.5 rounded-xl text-sm transition-all">
+          Génial, on commence !
+        </button>
+      </div>
+
+      <!-- ÉTAPE 3 : Création du premier compte -->
+      <div id="onboarding-step-3" class="space-y-4 hidden">
+        <h4 class="font-extrabold text-xl text-gray-800 dark:text-white text-center">Crée ton premier compte</h4>
+        <p class="text-xs text-gray-500 dark:text-gray-400 text-center px-4">Donne un nom sympa à ta première tirelire virtuelle pour démarrer.</p>
+        
+        <!-- Saisie nom -->
+        <div class="space-y-1">
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400">Nom du compte</label>
+          <input type="text" id="onboard-account-name" placeholder="Ex. Mon Argent de Poche, Ma Tirelire..." class="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+        </div>
+
+        <!-- Saisie Solde de départ -->
+        <div class="space-y-1">
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400">Combien as-tu dessus actuellement ?</label>
+          <div class="relative flex items-center">
+            <input type="number" step="0.01" id="onboard-account-balance" placeholder="0.00" class="w-full pl-3 pr-8 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 font-bold">
+            <span class="absolute right-3 text-gray-400 font-bold">€</span>
+          </div>
+        </div>
+
+        <button onclick="saveOnboardingAccount()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3.5 rounded-xl text-sm transition-all flex items-center justify-center space-x-2">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span>Créer et démarrer</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL : EXPÉRIENCE NFC PAIEMENT -->
+  <div id="nfc-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-md transition-opacity duration-300">
+    <div class="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl relative p-6 space-y-6 flex flex-col items-center text-center transition-colors">
+      
+      <!-- Bouton fermer -->
+      <button onclick="closeNfcModal()" class="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-400">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="w-16 h-16 bg-brand-50 dark:bg-brand-500/20 rounded-2xl flex items-center justify-center text-brand-600 dark:text-brand-400 animate-pulse">
+        <i data-lucide="rss" class="w-8 h-8 rotate-45"></i>
+      </div>
+
+      <div class="space-y-2">
+        <h3 id="nfc-title" class="font-extrabold text-lg text-gray-800 dark:text-white">Paiement NFC Sans Contact</h3>
+        <p id="nfc-description" class="text-xs text-gray-500 dark:text-gray-400 px-4">Enregistrez une carte via NFC ou simulez-la.</p>
+      </div>
+
+      <!-- Animation de carte pour enregistrement/paiement -->
+      <div id="nfc-card-container" onclick="simulateCardTap()" class="w-full h-36 bg-gradient-to-br from-brand-600 to-gray-800 rounded-2xl p-4 text-white text-left flex flex-col justify-between shadow-lg cursor-pointer hover:scale-102 transition-transform relative overflow-hidden">
+        <div class="absolute inset-0 bg-white/5 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 to-transparent"></div>
+        <div class="flex justify-between items-start">
+          <i data-lucide="wallet" class="w-7 h-7 text-white/90"></i>
+          <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full uppercase font-bold tracking-widest">NFC Ready</span>
+        </div>
+        <div class="space-y-2">
+          <p class="font-mono text-sm tracking-widest">•••• •••• •••• <span id="nfc-card-last-four">4973</span></p>
+          <div class="flex justify-between items-end">
+            <div>
+              <p class="text-[8px] text-white/60 uppercase">Titulaire</p>
+              <p id="nfc-card-owner" class="text-xs font-medium">Argent de Poche</p>
+            </div>
+            <p class="text-[10px] font-bold text-white/80">TAP POUR SIMULER</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="w-full space-y-2">
+        <button id="nfc-action-btn" onclick="simulateCardTap()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-sm">
+          Simuler la carte manuellement
+        </button>
+        <p id="nfc-real-status" class="text-[10px] text-gray-400 dark:text-gray-500">Recherche de signal NFC matériel...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL : MODIFIER UN COMPTE -->
+  <div id="edit-account-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-md transition-opacity duration-300">
+    <div class="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl relative p-6 space-y-5 transition-colors">
+      <!-- Bouton fermer -->
+      <button onclick="closeEditAccountModal()" class="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-400">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="text-left">
+        <h3 class="font-extrabold text-lg text-gray-800 dark:text-white">Modifier le compte</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Personnalisez l'affichage et l'identité de ce compte.</p>
+      </div>
+
+      <!-- Nom du compte -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Nom du compte</label>
+        <input type="text" id="edit-account-name" placeholder="Ex. Tirelire Vacances..." class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+      </div>
+
+      <!-- Palette de couleurs pour l'édition de compte -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">Couleur d'identification</label>
+        <div class="flex flex-wrap gap-2" id="edit-account-colors-container">
+          <!-- Rempli en JS -->
+        </div>
+      </div>
+
+      <button onclick="saveEditedAccount()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center space-x-2 mt-2">
+        <i data-lucide="check" class="w-5 h-5"></i>
+        <span>Enregistrer</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL : AJOUT DE COMPTE -->
+  <div id="account-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-md transition-opacity duration-300">
+    <div class="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl relative p-6 space-y-5 transition-colors">
+      <!-- Bouton fermer -->
+      <button onclick="closeAccountModal()" class="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-400">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="text-left">
+        <h3 class="font-extrabold text-lg text-gray-800 dark:text-white">Nouveau compte</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Créez une nouvelle tirelire ou un compte virtuel.</p>
+      </div>
+
+      <!-- Nom du compte -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Nom du compte</label>
+        <input type="text" id="new-account-name" placeholder="Ex. Tirelire Vacances..." class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+      </div>
+
+      <!-- Solde initial -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Solde de départ</label>
+        <div class="relative flex items-center">
+          <input type="number" step="0.01" id="new-account-balance" placeholder="0.00" class="w-full pl-3 pr-8 py-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 font-bold">
+          <span class="absolute right-3 text-gray-400 font-bold">€</span>
+        </div>
+      </div>
+
+      <button onclick="saveNewAccount()" class="w-full bg-gray-900 dark:bg-gray-700 hover:bg-black dark:hover:bg-gray-600 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center space-x-2 mt-2">
+        <i data-lucide="plus" class="w-5 h-5"></i>
+        <span>Créer ce compte</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL : AJOUT RAPIDE DE TRANSACTION -->
+  <div id="transaction-modal" class="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden backdrop-blur-md transition-opacity duration-300">
+    <div class="bg-white dark:bg-gray-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative p-6 space-y-5 transform translate-y-0 transition-transform">
+      <button onclick="closeTransactionModal()" class="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-400">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="text-left">
+        <h3 class="font-extrabold text-lg text-gray-800 dark:text-white">Ajouter un flux</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Renseignez manuellement la recette ou dépense.</p>
+      </div>
+
+      <!-- Sélecteur Dépense ou Recette -->
+      <div class="grid grid-cols-2 gap-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
+        <button id="modal-type-expense" onclick="setModalTransactionType('expense')" class="py-2.5 text-xs font-bold rounded-lg text-center bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm transition-all">
+          Dépense (-)
+        </button>
+        <button id="modal-type-income" onclick="setModalTransactionType('income')" class="py-2.5 text-xs font-bold rounded-lg text-center text-gray-500 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-all">
+          Recette (+)
+        </button>
+      </div>
+
+      <!-- Saisie principale Montant -->
+      <div class="relative bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 text-center border border-transparent dark:border-gray-700">
+        <label class="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Montant de l'opération</label>
+        <div class="flex items-center justify-center space-x-1">
+          <input type="number" step="0.01" id="modal-amount" placeholder="0.00" class="bg-transparent text-3xl font-extrabold text-center text-gray-800 dark:text-white focus:outline-none w-48 placeholder-gray-300 dark:placeholder-gray-600">
+          <span id="modal-currency-symbol" class="text-2xl font-bold text-gray-400">€</span>
+        </div>
+      </div>
+
+      <!-- Titre / Description -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Titre de la transaction</label>
+        <input type="text" id="modal-title" placeholder="Ex. Achat de bonbons..." class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+      </div>
+
+      <!-- Sélection Catégorie -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Catégorie associée</label>
+        <select id="modal-category" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+        </select>
+      </div>
+
+      <!-- Date de transaction -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Date</label>
+        <input type="date" id="modal-date" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+      </div>
+
+      <!-- Bouton de validation -->
+      <button onclick="saveNewTransaction()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3.5 rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center space-x-2">
+        <i data-lucide="check" class="w-5 h-5"></i>
+        <span>Enregistrer</span>
+      </button>
+
+    </div>
+  </div>
+
+
+  <!-- LOGIQUE APPLICATIVE EN JAVASCRIPT -->
+  <script>
+    // --- THEMES DE COULEUR ---
+    const APP_THEMES = {
+      emerald: { 50: '#ecfdf5', 100: '#d1fae5', 500: '#10b981', 600: '#059669', 700: '#047857' },
+      blue: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+      purple: { 50: '#faf5ff', 100: '#f3e8ff', 500: '#a855f7', 600: '#9333ea', 700: '#7e22ce' },
+      rose: { 50: '#fff1f2', 100: '#ffe4e6', 500: '#f43f5e', 600: '#e11d48', 700: '#be123c' }
+    };
+
+    // --- ÉTAT GLOBAL ---
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+    // DÉMARRAGE SANS AUCUN COMPTE par défaut
+    const DEFAULT_ACCOUNTS = [];
+
+    const DEFAULT_CATEGORIES = {
+      expense: [
+        { id: 'cat-e-1', name: 'Supermarché', color: '#f43f5e', icon: 'shopping-bag' },
+        { id: 'cat-e-2', name: 'Loisirs & Jeux', color: '#a855f7', icon: 'gamepad-2' },
+        { id: 'cat-e-3', name: 'Transports', color: '#3b82f6', icon: 'bus' },
+        { id: 'cat-e-4', name: 'Cadeaux offerts', color: '#ec4899', icon: 'gift' }
+      ],
+      income: [
+        { id: 'cat-i-1', name: 'Argent de poche', color: '#10b981', icon: 'wallet' },
+        { id: 'cat-i-2', name: 'Anniversaire', color: '#f59e0b', icon: 'cake' },
+        { id: 'cat-i-3', name: 'Travaux / Services', color: '#06b6d4', icon: 'wrench' }
+      ]
+    };
+
+    const DEFAULT_TRANSACTIONS = [];
+
+    const PRESET_COLORS = ['#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#ec4899', '#64748b', '#000000'];
+    const PRESET_ICONS = ['shopping-bag', 'gamepad-2', 'bus', 'gift', 'wallet', 'cake', 'wrench', 'book-open', 'coffee', 'headphones', 'film', 'heart'];
+
+    let state = {
+      accounts: [],
+      categories: {},
+      transactions: [],
+      activeAccountId: '',
+      currentTab: 'home',
+      categoryTypeTab: 'expense',
+      reportPeriod: 'month',
+      modalTransactionType: 'expense',
+      nfcCardLinked: false,
+      currency: 'EUR',
+      appColor: 'emerald',
+      isDarkMode: false,
+      selectedColor: PRESET_COLORS[0],
+      selectedIcon: PRESET_ICONS[0]
+    };
+
+    let homeChartInstance = null;
+    let reportDoughnutInstance = null;
+    let nfcReaderInstance = null; // Stocker l'instance NFC réelle
+    
+    // Variables pour l'édition de compte active
+    let editingAccountId = null;
+    let selectedEditAccountColor = PRESET_COLORS[0];
+
+    // --- CHARGEMENT INITIAL ---
+    window.onload = function() {
+      loadStateFromStorage();
+      
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('modal-date').value = today;
+
+      applyAppThemeColors();
+      applyDarkModeLogic();
+      
+      renderAccountsDropdown();
+      renderCategoriesGrid();
+      renderCategoryFormAssets();
+      updateUI();
+      
+      lucide.createIcons();
+
+      // Si aucun compte n'est disponible, déclencher le tutoriel d'accueil obligatoirement
+      if (state.accounts.length === 0) {
+        openOnboardingModal();
+      }
+    };
+
+    function loadStateFromStorage() {
+      try {
+        const stored = localStorage.getItem(`smartbudget_state_${appId}`);
+        if (stored) {
+          state = JSON.parse(stored);
+          if (!state.accounts) state.accounts = [];
+          if (!state.appColor) state.appColor = 'emerald';
+        } else {
+          resetToDefaultState();
+        }
+      } catch (e) {
+        resetToDefaultState();
+      }
+    }
+
+    function saveStateToStorage() {
+      localStorage.setItem(`smartbudget_state_${appId}`, JSON.stringify(state));
+    }
+
+    function resetToDefaultState() {
+      state.accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+      state.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+      state.transactions = JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS));
+      state.activeAccountId = '';
+      state.nfcCardLinked = false;
+      state.currency = 'EUR';
+      state.appColor = 'emerald';
+      state.isDarkMode = false;
+      saveStateToStorage();
+    }
+
+    // --- DIALOGUE DE CONFIRMATION PERSONNALISÉ ---
+    function askConfirmation(title, text, onYes) {
+      const modal = document.getElementById('confirm-modal');
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-text').textContent = text;
+      
+      modal.classList.remove('hidden');
+      
+      document.getElementById('confirm-yes-btn').onclick = function() {
+        onYes();
+        closeConfirmModal();
+      };
+    }
+
+    function closeConfirmModal() {
+      document.getElementById('confirm-modal').classList.add('hidden');
+    }
+
+    // --- LOGIQUE DE TUTORIEL / ONBOARDING ---
+    function openOnboardingModal() {
+      document.getElementById('onboarding-overlay').classList.remove('hidden');
+      onboardingNext(1);
+    }
+
+    function onboardingNext(step) {
+      document.getElementById('onboarding-step-1').classList.add('hidden');
+      document.getElementById('onboarding-step-2').classList.add('hidden');
+      document.getElementById('onboarding-step-3').classList.add('hidden');
+
+      document.getElementById(`onboarding-step-${step}`).classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function saveOnboardingAccount() {
+      const name = document.getElementById('onboard-account-name').value.trim();
+      let initialBalance = parseFloat(document.getElementById('onboard-account-balance').value);
+
+      if (!name) return showToast("Saisis un nom pour ton premier compte !");
+      if (isNaN(initialBalance) || initialBalance < 0) initialBalance = 0;
+
+      const newAccId = `acc-init-${Date.now()}`;
+      
+      state.accounts.push({
+        id: newAccId,
+        name: name,
+        lastFour: '4973',
+        balance: 0, 
+        color: '#10b981',
+        avatar: name.substring(0, 2).toUpperCase()
+      });
+
+      if (initialBalance > 0) {
+        state.transactions.unshift({
+          id: `t-init-${Date.now()}`,
+          accountId: newAccId,
+          type: 'income',
+          amount: initialBalance,
+          title: 'Solde de départ',
+          categoryId: state.categories.income[0].id,
+          date: new Date().toISOString().split('T')[0]
+        });
+      }
+
+      state.activeAccountId = newAccId;
+      saveStateToStorage();
+      
+      document.getElementById('onboarding-overlay').classList.add('hidden');
+      showToast(`Super ! Bienvenue sur ton compte "${name}" ! 🎉`);
+      updateUI();
+    }
+
+    // --- MISE À JOUR UI GLOBAL ---
+    function updateUI() {
+      const activeAccount = getActiveAccount();
+      if (!activeAccount) {
+        document.getElementById('current-account-name').textContent = "Aucun compte";
+        document.getElementById('current-account-card').textContent = "----";
+        document.getElementById('home-balance').textContent = formatMoney(0);
+        document.getElementById('home-total-income').textContent = `+${formatMoney(0)}`;
+        document.getElementById('home-total-expenses').textContent = `-${formatMoney(0)}`;
+        renderRecentTransactions();
+        buildHomeChart();
+        buildReportCharts();
+        renderSettingsAccountsList();
+        return;
+      }
+
+      document.getElementById('modal-currency-symbol').textContent = getCurrencySymbol();
+      document.getElementById('current-account-name').textContent = activeAccount.name;
+      document.getElementById('current-account-card').textContent = activeAccount.lastFour === '0000' ? 'Aucune carte' : `${activeAccount.lastFour}...`;
+      
+      const avatarEl = document.getElementById('current-account-avatar');
+      avatarEl.textContent = activeAccount.avatar;
+      avatarEl.style.backgroundColor = activeAccount.color;
+
+      recalculateBalances();
+
+      document.getElementById('home-balance').textContent = formatMoney(activeAccount.balance);
+      const totals = getTotalsForCurrentMonth(activeAccount.id);
+      document.getElementById('home-total-income').textContent = `+${formatMoney(totals.income)}`;
+      document.getElementById('home-total-expenses').textContent = `-${formatMoney(totals.expense)}`;
+
+      renderRecentTransactions();
+      renderAccountsDropdown();
+      renderCategoriesGrid();
+      renderSettingsAccountsList();
+
+      buildHomeChart();
+      buildReportCharts();
+
+      document.getElementById('setting-theme-color').value = state.appColor;
+      document.getElementById('setting-currency').value = state.currency;
+
+      lucide.createIcons();
+    }
+
+    function recalculateBalances() {
+      state.accounts.forEach(acc => {
+        let currentBalance = 0.00;
+        const accTransactions = state.transactions.filter(t => t.accountId === acc.id);
+        accTransactions.forEach(t => {
+          if (t.type === 'income') currentBalance += parseFloat(t.amount);
+          else currentBalance -= parseFloat(t.amount);
+        });
+        acc.balance = currentBalance;
+      });
+    }
+
+    // --- THEME & COULEURS ---
+    function updateAppColor() {
+      const select = document.getElementById('setting-theme-color');
+      state.appColor = select.value;
+      saveStateToStorage();
+      applyAppThemeColors();
+      showToast("Couleur de l'application mise à jour !");
+      updateUI();
+    }
+
+    function applyAppThemeColors() {
+      const colorSet = APP_THEMES[state.appColor] || APP_THEMES['emerald'];
+      const styleTag = document.getElementById('theme-style');
+      styleTag.innerHTML = `
+        :root {
+          --brand-50: ${colorSet[50]};
+          --brand-100: ${colorSet[100]};
+          --brand-500: ${colorSet[500]};
+          --brand-600: ${colorSet[600]};
+          --brand-700: ${colorSet[700]};
+        }
+      `;
+    }
+
+    // MODE SOMBRE
+    function toggleDarkMode() {
+      state.isDarkMode = !state.isDarkMode;
+      saveStateToStorage();
+      applyDarkModeLogic();
+      showToast(state.isDarkMode ? "Mode Sombre activé" : "Mode Clair activé");
+      updateUI();
+    }
+
+    function applyDarkModeLogic() {
+      const body = document.documentElement;
+      const btn = document.getElementById('dark-mode-btn');
+      if (state.isDarkMode) {
+        body.classList.add('dark');
+        btn.textContent = "Désactiver";
+      } else {
+        body.classList.remove('dark');
+        btn.textContent = "Activer";
+      }
+    }
+
+    // --- NAVIGATION PAR ONGLET ---
+    function switchTab(tabName) {
+      if (state.accounts.length === 0) {
+        openOnboardingModal();
+        return;
+      }
+      state.currentTab = tabName;
+      
+      document.getElementById('tab-home').classList.add('hidden');
+      document.getElementById('tab-categories').classList.add('hidden');
+      document.getElementById('tab-report').classList.add('hidden');
+      document.getElementById('tab-settings').classList.add('hidden');
+      document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+
+      const buttons = ['home', 'categories', 'report', 'settings'];
+      buttons.forEach(btn => {
+        const btnEl = document.getElementById(`nav-${btn}`);
+        if (btn === tabName) {
+          btnEl.classList.remove('text-gray-400', 'dark:text-gray-300', 'hover:text-gray-600', 'dark:hover:text-gray-300');
+          btnEl.classList.add('text-brand-600', 'dark:text-brand-400');
+          btnEl.querySelector('span').classList.add('font-bold');
+          btnEl.querySelector('span').classList.remove('font-semibold');
+        } else {
+          btnEl.classList.add('text-gray-400', 'dark:text-gray-300', 'hover:text-gray-600', 'dark:hover:text-gray-300');
+          btnEl.classList.remove('text-brand-600', 'dark:text-brand-400');
+          btnEl.querySelector('span').classList.remove('font-bold');
+          btnEl.querySelector('span').classList.add('font-semibold');
+        }
+      });
+      updateUI();
+    }
+
+    // --- EXPÉRIENCE MULTI-COMPTES (AJOUT, ÉDITION ET SUPPRESSION) ---
+    function getActiveAccount() {
+      if (!state.accounts || state.accounts.length === 0) return null;
+      return state.accounts.find(acc => acc.id === state.activeAccountId) || state.accounts[0];
+    }
+
+    function toggleAccountDropdown() {
+      if (state.accounts.length === 0) {
+        openOnboardingModal();
+        return;
+      }
+      document.getElementById('account-dropdown').classList.toggle('hidden');
+    }
+
+    function selectAccount(accountId) {
+      state.activeAccountId = accountId;
+      document.getElementById('account-dropdown').classList.add('hidden');
+      showToast(`Compte actif : ${getActiveAccount().name}`);
+      saveStateToStorage();
+      updateUI();
+    }
+
+    function openAccountModal() {
+      document.getElementById('account-dropdown').classList.add('hidden');
+      document.getElementById('account-modal').classList.remove('hidden');
+      document.getElementById('new-account-name').value = '';
+      document.getElementById('new-account-balance').value = '';
+    }
+
+    function closeAccountModal() {
+      document.getElementById('account-modal').classList.add('hidden');
+    }
+
+    function saveNewAccount() {
+      const name = document.getElementById('new-account-name').value.trim();
+      let initialBalance = parseFloat(document.getElementById('new-account-balance').value);
+      if (!name) return showToast("Veuillez choisir un nom !");
+      if (isNaN(initialBalance) || initialBalance < 0) initialBalance = 0;
+
+      const newAccId = `acc-custom-${Date.now()}`;
+      const randomColor = PRESET_COLORS[Math.floor(Math.random() * 8)];
+      
+      state.accounts.push({
+        id: newAccId, name: name, lastFour: Math.floor(1000 + Math.random() * 9000).toString(),
+        balance: 0, color: randomColor, avatar: name.substring(0, 2).toUpperCase()
+      });
+
+      if (initialBalance > 0) {
+        state.transactions.unshift({
+          id: `t-init-${Date.now()}`, accountId: newAccId, type: 'income', amount: initialBalance,
+          title: 'Solde de départ', categoryId: state.categories.income[0].id,
+          date: new Date().toISOString().split('T')[0]
+        });
+      }
+      state.activeAccountId = newAccId;
+      saveStateToStorage();
+      closeAccountModal();
+      showToast(`Le compte "${name}" a été créé !`);
+      updateUI();
+    }
+
+    // MODAL DE MODIFICATION D'UN COMPTE
+    function openEditAccountModal(accountId, event) {
+      if (event) event.stopPropagation(); // Évite la fermeture ou la sélection intempestive
+      
+      const acc = state.accounts.find(a => a.id === accountId);
+      if (!acc) return;
+
+      editingAccountId = accountId;
+      selectedEditAccountColor = acc.color;
+      
+      document.getElementById('edit-account-name').value = acc.name;
+      document.getElementById('account-dropdown').classList.add('hidden');
+      document.getElementById('edit-account-modal').classList.remove('hidden');
+
+      // Générer la palette de couleurs
+      const paletteContainer = document.getElementById('edit-account-colors-container');
+      paletteContainer.innerHTML = '';
+      PRESET_COLORS.forEach(color => {
+        const btn = document.createElement('button');
+        btn.className = `w-7 h-7 rounded-full transition-all border-2 ${color === selectedEditAccountColor ? 'border-gray-900 dark:border-white scale-110' : 'border-transparent'}`;
+        btn.style.backgroundColor = color;
+        btn.onclick = () => {
+          selectedEditAccountColor = color;
+          paletteContainer.querySelectorAll('button').forEach(b => {
+            b.classList.remove('border-gray-900', 'dark:border-white', 'scale-110');
+            b.classList.add('border-transparent');
+          });
+          btn.classList.remove('border-transparent');
+          btn.classList.add('border-gray-900', 'dark:border-white', 'scale-110');
+        };
+        paletteContainer.appendChild(btn);
+      });
+    }
+
+    function closeEditAccountModal() {
+      document.getElementById('edit-account-modal').classList.add('hidden');
+      editingAccountId = null;
+    }
+
+    function saveEditedAccount() {
+      const name = document.getElementById('edit-account-name').value.trim();
+      if (!name) return showToast("Veuillez choisir un nom !");
+
+      const acc = state.accounts.find(a => a.id === editingAccountId);
+      if (acc) {
+        acc.name = name;
+        acc.color = selectedEditAccountColor;
+        acc.avatar = name.substring(0, 2).toUpperCase();
+        
+        saveStateToStorage();
+        closeEditAccountModal();
+        showToast("Compte mis à jour !");
+        updateUI();
+      }
+    }
+
+    // SUPPRESSION D'UN COMPTE
+    function deleteAccount(accountId, event) {
+      if (event) event.stopPropagation();
+      const acc = state.accounts.find(a => a.id === accountId);
+      if (!acc) return;
+
+      document.getElementById('account-dropdown').classList.add('hidden');
+
+      askConfirmation(
+        "Supprimer le compte ?",
+        `Es-tu sûr(e) de vouloir supprimer le compte "${acc.name}" ainsi que toutes ses transactions ? Cette action est irréversible.`,
+        function() {
+          // Supprimer le compte et ses transactions
+          state.accounts = state.accounts.filter(a => a.id !== accountId);
+          state.transactions = state.transactions.filter(t => t.accountId !== accountId);
+
+          // Si le compte supprimé était le compte actif
+          if (state.activeAccountId === accountId) {
+            state.activeAccountId = state.accounts.length > 0 ? state.accounts[0].id : '';
+          }
+
+          saveStateToStorage();
+          showToast(`Compte "${acc.name}" supprimé.`);
+          
+          if (state.accounts.length === 0) {
+            openOnboardingModal();
+          } else {
+            updateUI();
+          }
+        }
+      );
+    }
+
+    // Rendu du menu déroulant (Bulle header) avec actions Modifier / Supprimer
+    function renderAccountsDropdown() {
+      const listEl = document.getElementById('accounts-list');
+      listEl.innerHTML = '';
+      state.accounts.forEach(acc => {
+        const isCurrent = acc.id === state.activeAccountId;
+        
+        const container = document.createElement('div');
+        container.className = `flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-colors group ${isCurrent ? 'bg-brand-50/50 dark:bg-brand-500/10' : ''}`;
+        
+        container.innerHTML = `
+          <button onclick="selectAccount('${acc.id}')" class="flex-1 flex items-center space-x-3 text-left">
+            <div class="w-8 h-8 rounded-full text-white font-bold text-xs flex items-center justify-center shrink-0" style="background-color: ${acc.color}">${acc.avatar}</div>
+            <div class="truncate max-w-[110px]">
+              <p class="text-xs font-bold text-gray-800 dark:text-white truncate">${acc.name}</p>
+              <p class="text-[10px] text-gray-400 dark:text-gray-500">${formatMoney(acc.balance)}</p>
+            </div>
+          </button>
+          
+          <div class="flex items-center space-x-1 shrink-0 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onclick="openEditAccountModal('${acc.id}', event)" class="p-1 text-gray-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors" title="Modifier">
+              <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="deleteAccount('${acc.id}', event)" class="p-1 text-gray-400 hover:text-rose-500 dark:hover:text-rose-400 transition-colors" title="Supprimer">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `;
+        listEl.appendChild(container);
+      });
+      
+      const addBtn = document.createElement('div');
+      addBtn.className = "border-t border-gray-100 dark:border-gray-700 mt-1 pt-1";
+      addBtn.innerHTML = `
+        <button onclick="openAccountModal()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 hover:bg-brand-50 dark:hover:bg-gray-700 text-brand-600 dark:text-brand-400 transition-colors text-xs font-bold rounded-b-2xl">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span>Ajouter un compte</span>
+        </button>
+      `;
+      listEl.appendChild(addBtn);
+      lucide.createIcons();
+    }
+
+    // Rendu de la gestion des comptes dans l'onglet Paramètres
+    function renderSettingsAccountsList() {
+      const container = document.getElementById('settings-accounts-list');
+      container.innerHTML = '';
+
+      if (state.accounts.length === 0) {
+        container.innerHTML = `<p class="text-xs text-gray-400 dark:text-gray-500 text-center py-4">Aucun compte configuré.</p>`;
+        return;
+      }
+
+      state.accounts.forEach(acc => {
+        const isCurrent = acc.id === state.activeAccountId;
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-100 dark:border-gray-700/60";
+        row.innerHTML = `
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-full text-white font-bold text-xs flex items-center justify-center" style="background-color: ${acc.color}">${acc.avatar}</div>
+            <div>
+              <div class="flex items-center space-x-1.5">
+                <span class="text-xs font-bold text-gray-800 dark:text-white">${acc.name}</span>
+                ${isCurrent ? `<span class="text-[8px] bg-brand-100 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 font-extrabold px-1.5 py-0.5 rounded-full uppercase">Actif</span>` : ''}
+              </div>
+              <p class="text-[10px] text-gray-500 dark:text-gray-400">${formatMoney(acc.balance)}</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button onclick="openEditAccountModal('${acc.id}', event)" class="p-1.5 text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-400 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700" title="Modifier">
+              <i data-lucide="edit-3" class="w-4 h-4"></i>
+            </button>
+            <button onclick="deleteAccount('${acc.id}', event)" class="p-1.5 text-gray-500 dark:text-gray-400 hover:text-rose-500 dark:hover:text-rose-400 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700" title="Supprimer">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+      lucide.createIcons();
+    }
+
+    // --- MENU LATÉRAL ---
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (sidebar.classList.contains('-translate-x-full')) {
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('hidden');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+      }
+    }
+    document.getElementById('sidebar-overlay').onclick = toggleSidebar;
+
+    // --- FORMULAIRE CATÉGORIES ---
+    function toggleCategoryTypeTab(type) {
+      state.categoryTypeTab = type;
+      const expBtn = document.getElementById('cat-tab-expense');
+      const incBtn = document.getElementById('cat-tab-income');
+      
+      const activeClass = "flex-1 py-2 text-xs font-bold rounded-lg text-center transition-all bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm";
+      const idleClass = "flex-1 py-2 text-xs font-semibold rounded-lg text-center transition-all text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white";
+
+      if (type === 'expense') {
+        expBtn.className = activeClass; incBtn.className = idleClass;
+      } else {
+        incBtn.className = activeClass; expBtn.className = idleClass;
+      }
+      renderCategoriesGrid();
+    }
+
+    function renderCategoryFormAssets() {
+      const colorContainer = document.getElementById('color-palette-container');
+      colorContainer.innerHTML = '';
+      PRESET_COLORS.forEach((color, index) => {
+        const btn = document.createElement('button');
+        btn.className = `w-7 h-7 rounded-full transition-all border-2 ${index === 0 ? 'border-gray-900 dark:border-white scale-110' : 'border-transparent'}`;
+        btn.style.backgroundColor = color;
+        btn.onclick = () => selectColor(color, btn);
+        colorContainer.appendChild(btn);
+      });
+
+      const iconContainer = document.getElementById('icon-palette-container');
+      iconContainer.innerHTML = '';
+      PRESET_ICONS.forEach((icon, index) => {
+        const btn = document.createElement('button');
+        btn.className = `p-2 rounded-xl border flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all ${index === 0 ? 'border-gray-900 dark:border-gray-300 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white' : 'border-gray-100 dark:border-gray-700'}`;
+        btn.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4"></i>`;
+        btn.onclick = () => selectIcon(icon, btn);
+        iconContainer.appendChild(btn);
+      });
+    }
+
+    function selectColor(color, element) {
+      state.selectedColor = color;
+      element.parentNode.querySelectorAll('button').forEach(btn => {
+        btn.classList.remove('border-gray-900', 'dark:border-white', 'scale-110');
+        btn.classList.add('border-transparent');
+      });
+      element.classList.remove('border-transparent');
+      element.classList.add('border-gray-900', 'dark:border-white', 'scale-110');
+    }
+
+    function selectIcon(icon, element) {
+      state.selectedIcon = icon;
+      element.parentNode.querySelectorAll('button').forEach(btn => {
+        btn.classList.remove('border-gray-900', 'dark:border-gray-300', 'bg-gray-50', 'dark:bg-gray-700', 'text-gray-800', 'dark:text-white');
+        btn.classList.add('border-gray-100', 'dark:border-gray-700', 'text-gray-500', 'dark:text-gray-400');
+      });
+      element.classList.remove('border-gray-100', 'dark:border-gray-700', 'text-gray-500', 'dark:text-gray-400');
+      element.classList.add('border-gray-900', 'dark:border-gray-300', 'bg-gray-50', 'dark:bg-gray-700', 'text-gray-800', 'dark:text-white');
+    }
+
+    function saveNewCategory() {
+      const nameInput = document.getElementById('new-cat-name');
+      const name = nameInput.value.trim();
+      if (!name) return showToast("Veuillez donner un nom !");
+      state.categories[state.categoryTypeTab].push({ id: `cat-custom-${Date.now()}`, name: name, color: state.selectedColor, icon: state.selectedIcon });
+      saveStateToStorage();
+      nameInput.value = '';
+      showToast(`Catégorie "${name}" créée !`);
+      updateUI();
+    }
+
+    function renderCategoriesGrid() {
+      const grid = document.getElementById('categories-grid');
+      grid.innerHTML = '';
+      const type = state.categoryTypeTab;
+      const cats = state.categories[type] || [];
+      if (cats.length === 0) return grid.innerHTML = `<div class="col-span-2 text-center py-6 text-xs text-gray-400">Aucune catégorie.</div>`;
+
+      cats.forEach(cat => {
+        const card = document.createElement('div');
+        card.className = "bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-4 flex items-center space-x-3 shadow-sm relative group";
+        card.innerHTML = `
+          <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0" style="background-color: ${cat.color}">
+            <i data-lucide="${cat.icon}" class="w-4 h-4"></i>
+          </div>
+          <div class="truncate flex-1">
+            <p class="text-xs font-bold text-gray-800 dark:text-white truncate">${cat.name}</p>
+            <p class="text-[9px] text-gray-400 uppercase tracking-wider">${type === 'expense' ? 'Dépense' : 'Recette'}</p>
+          </div>
+          ${cat.id.includes('custom') ? `
+            <button onclick="deleteCategory('${type}', '${cat.id}')" class="absolute top-2 right-2 p-1 text-gray-300 hover:text-rose-500 rounded-lg transition-colors">
+              <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+            </button>
+          ` : ''}
+        `;
+        grid.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    function deleteCategory(type, catId) {
+      state.categories[type] = state.categories[type].filter(cat => cat.id !== catId);
+      saveStateToStorage();
+      showToast("Catégorie supprimée.");
+      updateUI();
+    }
+
+    // --- FORMULAIRE TRANSACTIONS ---
+    function openTransactionModal() {
+      if (state.accounts.length === 0) {
+        openOnboardingModal();
+        return;
+      }
+      document.getElementById('transaction-modal').classList.remove('hidden');
+      document.getElementById('modal-amount').value = '';
+      document.getElementById('modal-title').value = '';
+      setModalTransactionType('expense');
+    }
+
+    function closeTransactionModal() {
+      document.getElementById('transaction-modal').classList.add('hidden');
+    }
+
+    function setModalTransactionType(type) {
+      state.modalTransactionType = type;
+      const expBtn = document.getElementById('modal-type-expense');
+      const incBtn = document.getElementById('modal-type-income');
+      const activeClass = "py-2.5 text-xs font-bold rounded-lg text-center bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm transition-all";
+      const idleClass = "py-2.5 text-xs font-bold rounded-lg text-center text-gray-500 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-all";
+      if (type === 'expense') { expBtn.className = activeClass; incBtn.className = idleClass; } 
+      else { incBtn.className = activeClass; expBtn.className = idleClass; }
+      
+      const select = document.getElementById('modal-category');
+      select.innerHTML = '';
+      (state.categories[type] || []).forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.id; option.textContent = cat.name;
+        select.appendChild(option);
+      });
+    }
+
+    function saveNewTransaction() {
+      const amount = parseFloat(document.getElementById('modal-amount').value);
+      const title = document.getElementById('modal-title').value.trim();
+      const categoryId = document.getElementById('modal-category').value;
+      const date = document.getElementById('modal-date').value;
+
+      if (isNaN(amount) || amount <= 0) return showToast("Saisissez un montant valide !");
+      if (!title) return showToast("Saisissez un titre !");
+      if (!categoryId) return showToast("Associez une catégorie !");
+
+      const activeAccount = getActiveAccount();
+      if (state.modalTransactionType === 'expense' && activeAccount.balance - amount < 0) {
+        showToast("Attention, votre compte va être à découvert.");
+      }
+
+      state.transactions.unshift({
+        id: `t-custom-${Date.now()}`, accountId: activeAccount.id, type: state.modalTransactionType,
+        amount: amount, title: title, categoryId: categoryId, date: date || new Date().toISOString().split('T')[0]
+      });
+
+      saveStateToStorage();
+      closeTransactionModal();
+      showToast(`Transaction "${title}" enregistrée !`);
+      updateUI();
+    }
+
+    // --- ACCUEIL ---
+    function renderRecentTransactions() {
+      const container = document.getElementById('recent-transactions-list');
+      container.innerHTML = '';
+      const activeAcc = getActiveAccount();
+      if (!activeAcc) {
+        container.innerHTML = `<div class="bg-white dark:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-600 rounded-2xl p-8 text-center text-xs text-gray-400">Aucun historique disponible. Créez un compte pour commencer.</div>`;
+        return;
+      }
+      
+      const list = state.transactions.filter(t => t.accountId === activeAcc.id);
+      if (list.length === 0) return container.innerHTML = `<div class="bg-white dark:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-600 rounded-2xl p-8 text-center text-xs text-gray-400">Aucun historique. Cliquez sur le bouton + pour tester.</div>`;
+
+      list.slice(0, 5).forEach(t => {
+        const cat = findCategoryById(t.categoryId, t.type);
+        const card = document.createElement('div');
+        card.className = "bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-3 flex items-center justify-between shadow-sm relative group";
+        card.innerHTML = `
+          <div class="flex items-center space-x-3 min-w-0">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0" style="background-color: ${cat ? cat.color : '#94a3b8'}">
+              <i data-lucide="${cat ? cat.icon : 'dollar-sign'}" class="w-4 h-4"></i>
+            </div>
+            <div class="truncate">
+              <p class="text-xs font-bold text-gray-800 dark:text-white truncate">${t.title}</p>
+              <p class="text-[10px] text-gray-400">${formatDate(t.date)} • ${cat ? cat.name : 'Inconnu'}</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-extrabold ${t.type === 'expense' ? 'text-rose-500' : 'text-brand-500'}">${(t.type === 'expense' ? '-' : '+') + t.amount.toFixed(2)} ${getCurrencySymbol()}</span>
+            <button onclick="deleteTransaction('${t.id}')" class="p-1 text-gray-300 dark:text-gray-500 hover:text-rose-500 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
+              <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    function deleteTransaction(id) {
+      state.transactions = state.transactions.filter(t => t.id !== id);
+      saveStateToStorage();
+      showToast("Transaction supprimée.");
+      updateUI();
+    }
+
+    function buildHomeChart() {
+      const ctx = document.getElementById('homeChart').getContext('2d');
+      const activeAccount = getActiveAccount();
+      
+      if (!activeAccount) {
+        if (homeChartInstance) homeChartInstance.destroy();
+        return;
+      }
+
+      const accTransactions = state.transactions.filter(t => t.accountId === activeAccount.id);
+      const sorted = [...accTransactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      const dates = []; const values = [];
+      let runningTotal = activeAccount.balance - accTransactions.reduce((acc, t) => acc + (t.type === 'income' ? t.amount : -t.amount), 0); 
+      
+      if (sorted.length === 0) {
+        dates.push("Aujourd'hui"); values.push(activeAccount.balance);
+      } else {
+        sorted.forEach(t => {
+          runningTotal += (t.type === 'income' ? t.amount : -t.amount);
+          dates.push(formatDateMinimal(t.date)); values.push(runningTotal);
+        });
+      }
+
+      if (homeChartInstance) homeChartInstance.destroy();
+      
+      // Couleurs Chart.js selon thème
+      const colorSet = APP_THEMES[state.appColor] || APP_THEMES['emerald'];
+      const brandColor = colorSet[500];
+      const gridColor = state.isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(243, 244, 246, 1)';
+      const textColor = state.isDarkMode ? '#9ca3af' : '#9ca3af';
+
+      homeChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [{
+            data: values, borderColor: brandColor, backgroundColor: brandColor + '15',
+            borderWidth: 2.5, fill: true, tension: 0.35, pointRadius: 3, pointBackgroundColor: brandColor
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+          scales: {
+            y: { grid: { color: gridColor }, ticks: { font: { size: 9 }, color: textColor } },
+            x: { grid: { display: false }, ticks: { font: { size: 9 }, color: textColor } }
+          }
+        }
+      });
+    }
+
+    // --- RAPPORT ---
+    function buildReportCharts() {
+      const activeAcc = getActiveAccount();
+      if (!activeAcc) {
+        if (reportDoughnutInstance) reportDoughnutInstance.destroy();
+        return;
+      }
+
+      const list = filterTransactionsByPeriod(state.transactions.filter(t => t.accountId === activeAcc.id), state.reportPeriod);
+      let totalIncome = 0; let totalExpense = 0;
+      list.forEach(t => { if (t.type === 'income') totalIncome += t.amount; else totalExpense += t.amount; });
+
+      const sym = getCurrencySymbol();
+      document.getElementById('report-stat-income').textContent = `+${totalIncome.toFixed(2)} ${sym}`;
+      document.getElementById('report-stat-expenses').textContent = `-${totalExpense.toFixed(2)} ${sym}`;
+      const net = totalIncome - totalExpense;
+      const netEl = document.getElementById('report-stat-net');
+      netEl.textContent = `${net >= 0 ? '+' : ''}${net.toFixed(2)} ${sym}`;
+      netEl.className = `text-xs font-bold mt-1 ${net >= 0 ? 'text-brand-600 dark:text-brand-500' : 'text-rose-600 dark:text-rose-500'}`;
+
+      const catGroup = {};
+      list.filter(t => t.type === 'expense').forEach(t => {
+        const cat = findCategoryById(t.categoryId, 'expense');
+        const name = cat ? cat.name : 'Inconnu';
+        if (!catGroup[name]) catGroup[name] = { amount: 0, color: cat ? cat.color : '#94a3b8' };
+        catGroup[name].amount += t.amount;
+      });
+
+      const catNames = Object.keys(catGroup);
+      const catAmounts = catNames.map(n => catGroup[n].amount);
+      const catColors = catNames.map(n => catGroup[n].color);
+
+      document.getElementById('report-no-data-warning').classList.toggle('hidden', catNames.length > 0);
+      const canvas = document.getElementById('reportDoughnutChart');
+      canvas.classList.toggle('opacity-10', catNames.length === 0);
+
+      if (reportDoughnutInstance) reportDoughnutInstance.destroy();
+      const borderColor = state.isDarkMode ? '#1f2937' : '#ffffff';
+
+      reportDoughnutInstance = new Chart(canvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: catNames.length > 0 ? catNames : ['Aucune dépense'],
+          datasets: [{
+            data: catAmounts.length > 0 ? catAmounts : [1],
+            backgroundColor: catColors.length > 0 ? catColors : [state.isDarkMode ? '#374151' : '#e2e8f0'],
+            borderWidth: 1.5, borderColor: borderColor
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '70%' }
+      });
+
+      const bc = document.getElementById('report-category-breakdown');
+      bc.innerHTML = '';
+      if (catNames.length === 0) return bc.innerHTML = `<div class="text-center py-4 text-xs text-gray-400">Aucune dépense sur cette période.</div>`;
+      
+      catNames.forEach(name => {
+        const item = catGroup[name];
+        const row = document.createElement('div');
+        row.className = "bg-white dark:bg-gray-800 p-3 border border-gray-100 dark:border-gray-700 rounded-xl flex items-center justify-between shadow-sm text-xs";
+        row.innerHTML = `
+          <div class="flex items-center space-x-2.5">
+            <span class="w-3 h-3 rounded-full" style="background-color: ${item.color}"></span>
+            <span class="font-bold text-gray-700 dark:text-gray-200">${name}</span>
+          </div>
+          <div class="text-right">
+            <span class="font-extrabold text-gray-800 dark:text-white">${item.amount.toFixed(2)} ${sym}</span>
+            <span class="text-[10px] text-gray-400 ml-1.5">${((item.amount / totalExpense) * 100).toFixed(0)}%</span>
+          </div>`;
+        bc.appendChild(row);
+      });
+    }
+
+    function changeReportPeriod(period) {
+      state.reportPeriod = period;
+      const wBtn = document.getElementById('period-weekly'); const mBtn = document.getElementById('period-monthly');
+      const activeCls = "px-3 py-1 text-[11px] font-bold rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-sm transition-all";
+      const idleCls = "px-3 py-1 text-[11px] font-semibold rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all";
+      if (period === 'week') { wBtn.className = activeCls; mBtn.className = idleCls; } 
+      else { mBtn.className = activeCls; wBtn.className = idleCls; }
+      buildReportCharts();
+    }
+
+    // --- VRAIE INTEGRATION WEB NFC ---
+    async function openNfcModal() {
+      if (state.accounts.length === 0) {
+        openOnboardingModal();
+        return;
+      }
+      document.getElementById('nfc-modal').classList.remove('hidden');
+      const acc = getActiveAccount();
+      document.getElementById('nfc-card-owner').textContent = acc.name;
+      document.getElementById('nfc-card-last-four').textContent = acc.lastFour === '0000' ? '1234' : acc.lastFour;
+
+      if (!state.nfcCardLinked) {
+        document.getElementById('nfc-title').textContent = "Associer votre carte bancaire";
+        document.getElementById('nfc-card-container').classList.add('grayscale', 'opacity-65');
+      } else {
+        document.getElementById('nfc-title').textContent = "Paiement NFC Prêt";
+        document.getElementById('nfc-card-container').classList.remove('grayscale', 'opacity-65');
+      }
+
+      // Tenter l'activation du vrai NFC
+      const statusEl = document.getElementById('nfc-real-status');
+      if ('NDEFReader' in window) {
+        statusEl.textContent = "NFC matériel détecté. Approchez une carte réelle pour déclencher !";
+        try {
+          const ndef = new NDEFReader();
+          await ndef.scan();
+          ndef.onreading = event => {
+            simulateCardTap(true);
+          };
+        } catch(e) {
+          statusEl.textContent = "NFC non autorisé. Utilisez le bouton manuel.";
+        }
+      } else {
+        statusEl.textContent = "API NFC non supportée sur ce navigateur/appareil. Simulation locale uniquement.";
+      }
+    }
+
+    function closeNfcModal() {
+      document.getElementById('nfc-modal').classList.add('hidden');
+    }
+
+    function simulateCardTap(isRealNFC = false) {
+      if (!state.nfcCardLinked) {
+        state.nfcCardLinked = true; saveStateToStorage();
+        showToast(isRealNFC ? "Carte réelle associée avec succès via NFC !" : "Carte associée (Simulation).");
+        openNfcModal();
+      } else {
+        const paymentAmount = 5.00;
+        if (getActiveAccount().balance - paymentAmount < 0) return showToast("Solde insuffisant pour ce paiement !");
+        
+        state.transactions.unshift({
+          id: `t-nfc-${Date.now()}`, accountId: state.activeAccountId, type: 'expense',
+          amount: paymentAmount, title: isRealNFC ? 'Achat réel NFC !' : 'Achat rapide NFC', categoryId: 'cat-e-1',
+          date: new Date().toISOString().split('T')[0]
+        });
+        saveStateToStorage(); playBeep();
+        showToast(`Paiement de 5,00 € réussi ! 🔊 ${isRealNFC ? '(Vraie lecture NFC)' : ''}`);
+        closeNfcModal(); updateUI();
+      }
+    }
+
+    // --- PARAMÈTRES & CONFIGURATION ---
+    function updateCurrency() {
+      state.currency = document.getElementById('setting-currency').value;
+      saveStateToStorage(); showToast("Devise mise à jour."); updateUI();
+    }
+
+    function injectDemoData() {
+      if (state.accounts.length === 0) {
+        state.accounts.push({
+          id: 'acc-1', name: 'Argent de Poche', lastFour: '4973', balance: 0, color: '#10b981', avatar: 'AP'
+        });
+        state.activeAccountId = 'acc-1';
+      }
+
+      const targetId = state.activeAccountId || state.accounts[0].id;
+      state.transactions = [
+        { id: 't-d1', accountId: targetId, type: 'expense', amount: 8.90, title: 'Sandwich & Boisson', categoryId: 'cat-e-1', date: '2026-07-19' },
+        { id: 't-d2', accountId: targetId, type: 'expense', amount: 14.50, title: 'Cinéma', categoryId: 'cat-e-2', date: '2026-07-18' },
+        { id: 't-d3', accountId: targetId, type: 'income', amount: 35.00, title: 'Tonte de la pelouse', categoryId: 'cat-i-3', date: '2026-07-16' },
+      ];
+      saveStateToStorage(); showToast("Données d'exemples générées !"); updateUI();
+    }
+
+    function resetApp() {
+      askConfirmation(
+        "Réinitialiser tout ?",
+        "Es-tu sûr(e) de vouloir vider l'ensemble du stockage local de cette application (comptes, transactions, catégories) ?",
+        function() {
+          resetToDefaultState();
+          showToast("L'application a été réinitialisée.");
+          applyAppThemeColors();
+          applyDarkModeLogic();
+          updateUI();
+          openOnboardingModal();
+        }
+      );
+    }
+
+    // --- FONCTIONS UTILITAIRES ---
+    function getCurrencySymbol() { return state.currency === 'USD' ? '$' : (state.currency === 'CHF' ? 'CHF' : '€'); }
+    function formatMoney(amount) { return `${amount.toFixed(2)} ${getCurrencySymbol()}`; }
+    function formatDate(dStr) { return new Date(dStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }); }
+    function formatDateMinimal(dStr) { return new Date(dStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'numeric' }); }
+    function findCategoryById(catId, type) { return (state.categories[type] || []).find(cat => cat.id === catId); }
+    
+    function getTotalsForCurrentMonth(accId) {
+      const today = new Date();
+      let income = 0; let expense = 0;
+      state.transactions.filter(t => t.accountId === accId && new Date(t.date).getMonth() === today.getMonth()).forEach(t => {
+        if (t.type === 'income') income += t.amount; else expense += t.amount;
+      });
+      return { income, expense };
+    }
+    
+    function filterTransactionsByPeriod(list, period) {
+      const tDay = new Date();
+      return list.filter(t => {
+        const d = new Date(t.date);
+        return period === 'week' ? Math.abs(tDay - d) / 86400000 <= 7 : d.getMonth() === tDay.getMonth();
+      });
+    }
+
+    // Toast Notification personnalisée
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-message').textContent = msg;
+      toast.classList.remove('opacity-0', 'pointer-events-none', 'scale-90');
+      toast.classList.add('opacity-100', 'scale-100');
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'pointer-events-none', 'scale-90');
+        toast.classList.remove('opacity-100', 'scale-100');
+      }, 2500);
+    }
+    
+    function playBeep() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(880, ctx.currentTime); gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.12);
+      } catch (e) {}
+    }
+  </script>
+</body>
+</html>
