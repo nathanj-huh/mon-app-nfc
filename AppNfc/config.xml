@@ -1,14 +1,8 @@
 <widget xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0" xmlns:android="http://schemas.android.com/apk/res/android" id="com.monnfc.app" version="1.0.0">
-<name>AppNfc</name>
+<name>SmartBudget</name>
 <description> A sample Apache Cordova application that responds to the deviceready event. </description>
 <author email="dev@cordova.apache.org" href="https://cordova.apache.org"> Apache Cordova Team </author>
 <content src="index.html"/>
 <allow-intent href="http://*/*"/>
 <allow-intent href="https://*/*"/>
-<platform name="android">
-<config-file target="AndroidManifest.xml" parent="/manifest">
-<uses-permission android:name="android.permission.NFC"/>
-<uses-feature android:name="android.hardware.nfc" android:required="true"/>
-</config-file>
-</platform>
 </widget>
